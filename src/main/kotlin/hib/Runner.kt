@@ -6,6 +6,7 @@ import org.hibernate.annotations.Parent
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder
 import org.hibernate.cfg.Configuration
 import org.hibernate.cfg.Environment
+import org.jetbrains.annotations.NotNull
 import java.util.*
 import javax.persistence.*
 
@@ -16,13 +17,30 @@ data class User(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int? = null,
-
     val name: String?,
-
     val age: Int?,
+    val occupation: String,
 
-    val occupation: String
+    @OneToMany
+    @JoinColumn(name = "user_id")
+    val address: Set<Address>? = null
 )
+
+@Entity
+@Table(name = "address")
+data class Address(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "address_id")
+    val id: Int?,
+    val city: String,
+    val street: String,
+    val number: String
+) {
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    var user: User? = null
+}
 
 
 fun propertiesFromResource(resource: String): Properties {
@@ -107,10 +125,44 @@ fun main() {
 
     val configuration = buildHibernateConfiguration(
         properties.toHibernateProperties(),
-        User::class.java
+        User::class.java,
+        Address::class.java
     )
 
     val sessionFactory = buildSessionFactory(configuration)
+
+    sessionFactory.transaction { session ->
+        val query: TypedQuery<User> = session.createQuery("select t from User t where t.id=:id", User::class.java)
+        query.setParameter("id", 1)
+
+        val user = query.singleResult
+
+        //val updateUser = user.copy(name = "John", address = null)
+        //session.save(updateUser)
+
+        //user.address?.forEach {
+        //    session.delete(it)
+        //}
+
+        //session.delete(user)
+    }
+
+    /*sessionFactory.transaction { session ->
+        val address = mutableSetOf<Address>()
+        address.add(Address(null, "Moscow", "Radio", "12"))
+        address.add(Address(null, "Minsk", "Lenina", "33"))
+
+        val user = User(null, "Vladimir", 27, "driver", address)
+
+        session.save(user)
+
+        address.forEach {
+            it.user = user
+            session.save(it)
+        }
+    }*/
+
+    /*
     sessionFactory.transaction { session ->
         val user = session.createQuery("from User").uniqueResult() as User
 
@@ -118,4 +170,5 @@ fun main() {
             User(null,"John Doe", 30, "programmer")
         )
     }
+    */
 }
